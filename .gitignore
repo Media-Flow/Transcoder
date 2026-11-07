@@ -1,2 +1,4 @@
 *.exe
 *.env
+ logs.txt
+ transcoder
