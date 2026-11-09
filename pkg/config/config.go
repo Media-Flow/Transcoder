@@ -1,10 +1,15 @@
 package config
 
-import "os"
+import (
+	"fmt"
+	"os"
+	"strconv"
+)
 
 type Config struct {
 	Logger      LoggerConfig
 	QueueConfig QueueConfig
+	DB          DatabaseConfig
 }
 
 type LoggerConfig struct {
@@ -15,6 +20,12 @@ type LoggerConfig struct {
 type QueueConfig struct {
 	QueueAddr string
 	QueueName string
+}
+
+type DatabaseConfig struct {
+	ConnectionString string
+	DbName           string
+	MaxConnections   int
 }
 
 func getEnv(key, fallback string) string {
@@ -28,6 +39,10 @@ func getEnv(key, fallback string) string {
 }
 
 func LoadConfig() (*Config, error) {
+	maxConnections, err := strconv.Atoi(getEnv("DB_MAX_CONNECTIONS", "10"))
+	if err != nil {
+		return nil, fmt.Errorf("parse DB_MAX_CONNECTIONS: %w", err)
+	}
 	return &Config{
 		Logger: LoggerConfig{
 			Level:      getEnv("LOG_LEVEL", "INFO"),
@@ -36,6 +51,14 @@ func LoadConfig() (*Config, error) {
 		QueueConfig: QueueConfig{
 			QueueAddr: getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
 			QueueName: getEnv("RABBITMQ_QUEUE", "transcoder"),
+		},
+		DB: DatabaseConfig{
+			ConnectionString: getEnv(
+				"DATABASE_URL",
+				"postgres://postgres:postgres@localhost:5432/transcoder_db?sslmode=disable",
+			),
+			DbName:         getEnv("DB_NAME", "transcoder_db"),
+			MaxConnections: maxConnections,
 		},
 	}, nil
 }
