@@ -115,10 +115,16 @@ func NewClient() (*Client, error) {
 func (client *Client) watchClose(connClose, channelClose <-chan *amqp.Error) {
 	select {
 	case err, ok := <-connClose:
+		if client.isClosing() {
+			return
+		}
 		if ok && err != nil {
 			client.log.Errorf("%v", unavailable("RabbitMQ connection closed", err))
 		}
 	case err, ok := <-channelClose:
+		if client.isClosing() {
+			return
+		}
 		if ok && err != nil {
 			client.log.Errorf("%v", unavailable("RabbitMQ channel closed", err))
 		}
@@ -126,10 +132,29 @@ func (client *Client) watchClose(connClose, channelClose <-chan *amqp.Error) {
 	}
 }
 
+func (client *Client) isClosing() bool {
+	if client == nil || client.done == nil {
+		return false
+	}
+
+	select {
+	case <-client.done:
+		return true
+	default:
+		return false
+	}
+}
+
 func (client *Client) Consume(prefetch int) (<-chan amqp.Delivery, error) {
-	if client == nil || client.connection == nil || client.channel == nil {
+	if client == nil {
+		return nil, unavailable("start consumer", errNotConnected)
+	}
+
+	if client.connection == nil || client.channel == nil {
 		err := unavailable("start consumer", errNotConnected)
-		client.log.Errorf("%v", err)
+		if client.log != nil {
+			client.log.Errorf("%v", err)
+		}
 		return nil, err
 	}
 
@@ -140,7 +165,9 @@ func (client *Client) Consume(prefetch int) (<-chan amqp.Delivery, error) {
 	}
 
 	if err := client.channel.Qos(prefetch, 0, false); err != nil {
-		return nil, unavailable("set QoS", err)
+		queueErr := unavailable("set QoS", err)
+		client.log.Errorf("%v", queueErr)
+		return nil, queueErr
 	}
 
 	deliveries, err := client.channel.Consume(
@@ -168,6 +195,9 @@ func (client *Client) Close() error {
 	}
 
 	client.closeOnce.Do(func() {
+		if client.log != nil {
+			client.log.Infof("closing RabbitMQ consumer for queue %q", client.queueName)
+		}
 		if client.done != nil {
 			close(client.done)
 		}
