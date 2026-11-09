@@ -100,7 +100,7 @@ func NewLogger(component string) *Logger {
 }
 
 func (l *Logger) log(level Level, format string, args ...any) {
-	if level > l.core.minLevel {
+	if level < l.core.minLevel {
 		return
 	}
 	l.core.out.Printf("[%s] [%s][%s] [%s]",
