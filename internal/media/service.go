@@ -72,7 +72,6 @@ func (s *Service) HandleTranscodeEvent(
 	if err != nil {
 		return HandleResult{}, fmt.Errorf("find transcode event: %w", err)
 	}
-
 	return s.handleExistingEvent(ctx, event)
 }
 
@@ -101,6 +100,11 @@ func (s *Service) createAndClaim(
 	}
 	if !errors.Is(err, ErrTranscodeEventExists) {
 		return HandleResult{}, fmt.Errorf("create transcode event: %w", err)
+	}
+
+	event, err = s.repo.FindTranscodeEvent(ctx, eventID, mediaID)
+	if err != nil {
+		return HandleResult{}, fmt.Errorf("reload transcode event after create conflict: %w", err)
 	}
 
 	return s.handleExistingEvent(ctx, event)
