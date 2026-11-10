@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS transcode_event (
     status VARCHAR(20) NOT NULL DEFAULT 'PROCESSING'
         CHECK (status IN ('PROCESSING', 'FAIL', 'COMPLETE')),
 
-    attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+    attempts INTEGER NOT NULL DEFAULT 1 CHECK (attempts >= 0),
     last_error TEXT,
     locked_until TIMESTAMPTZ,
 

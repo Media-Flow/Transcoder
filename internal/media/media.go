@@ -14,6 +14,11 @@ const (
 	TranscodeStatusComplete   TranscodeStatus = "COMPLETE"
 )
 
+const (
+	VariantKey1080p = "1080p"
+	VariantKey720p  = "720p"
+)
+
 const MaxTranscodeAttempts = 3
 
 func (status TranscodeStatus) Valid() bool {

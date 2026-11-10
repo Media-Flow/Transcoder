@@ -7,10 +7,13 @@ import (
 )
 
 var (
-	ErrTranscodeEventNotFound      = errors.New("transcode event not found")
-	ErrTranscodeEventExists        = errors.New("transcode event already exists")
-	ErrTranscodeEventNotClaimable  = errors.New("transcode event is not claimable")
-	ErrTranscodeEventNotProcessing = errors.New("transcode event is not processing")
+	ErrTranscodeEventNotFound          = errors.New("transcode event not found")
+	ErrTranscodeEventExists            = errors.New("transcode event already exists")
+	ErrTranscodeEventNotClaimable      = errors.New("transcode event is not claimable")
+	ErrTranscodeEventNotProcessing     = errors.New("transcode event is not processing")
+	ErrTranscodeEventLocked            = errors.New("transcode event is locked")
+	ErrTranscodeEventAttemptsExhausted = errors.New("transcode event attempts exhausted")
+	ErrTranscodeEventAlreadyComplete   = errors.New("transcode event already complete")
 )
 
 type Repository struct {

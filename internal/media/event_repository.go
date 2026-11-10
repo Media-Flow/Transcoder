@@ -246,10 +246,11 @@ RETURNING
 
 	var status TranscodeStatus
 	var attempts int
+	var locked bool
 	lookupErr := r.db.QueryRow(ctx, `
-SELECT status, attempts
+SELECT status, attempts, (locked_until IS NOT NULL AND locked_until > now())
 FROM transcode_event
-WHERE id = $1`, id).Scan(&status, &attempts)
+WHERE id = $1`, id).Scan(&status, &attempts, &locked)
 	if errors.Is(lookupErr, pgx.ErrNoRows) {
 		return nil, ErrTranscodeEventNotFound
 	}
@@ -257,12 +258,23 @@ WHERE id = $1`, id).Scan(&status, &attempts)
 		return nil, fmt.Errorf("inspect unclaimable transcode event: %w", lookupErr)
 	}
 
-	return nil, fmt.Errorf(
-		"%w: status=%s attempts=%d",
-		ErrTranscodeEventNotClaimable,
-		status,
-		attempts,
-	)
+	switch {
+	case status == TranscodeStatusComplete:
+		return nil, ErrTranscodeEventAlreadyComplete
+	case status == TranscodeStatusProcessing && locked:
+		return nil, ErrTranscodeEventLocked
+	case attempts >= MaxTranscodeAttempts:
+		return nil, ErrTranscodeEventAttemptsExhausted
+	case status == TranscodeStatusProcessing:
+		return nil, ErrTranscodeEventLocked
+	default:
+		return nil, fmt.Errorf(
+			"%w: status=%s attempts=%d",
+			ErrTranscodeEventNotClaimable,
+			status,
+			attempts,
+		)
+	}
 }
 
 func (r *Repository) CompleteEvent(
@@ -381,7 +393,7 @@ FOR UPDATE`, id).Scan(&status)
 		return fmt.Errorf("lock transcode event: %w", err)
 	}
 
-	if status == TranscodeStatusFailed {
+	if status == TranscodeStatusFailed || status == TranscodeStatusComplete {
 		return nil
 	}
 	if status != TranscodeStatusProcessing {
