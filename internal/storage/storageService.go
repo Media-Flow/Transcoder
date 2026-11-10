@@ -34,7 +34,7 @@ func (s *StorageService) UploadMultipleFiles(ctx context.Context, rootDir string
 			return fmt.Errorf("failed to open file %q: %w", localPath, err)
 		}
 
-		uploadErr := s.repo(ctx, relPath, file)
+		uploadErr := s.repo.Upload(ctx, relPath, file)
 
 		closeErr := file.Close()
 

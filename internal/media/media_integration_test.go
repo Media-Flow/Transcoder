@@ -253,7 +253,7 @@ func requireOutcome(t *testing.T, result HandleResult, want TranscodeOutcome) {
 	t.Helper()
 
 	if result.Outcome != want {
-		t.Fatalf("outcome = %q, want %q", result.Outcome, want)
+		t.Fatalf("outcome = %d, want %d", result.Outcome, want)
 	}
 }
 

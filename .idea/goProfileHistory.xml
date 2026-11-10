@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GoProfileHistory">
+    <profile entry="$USER_HOME$/GoLandProfiles/go_build_Transcoder_cmd-heap_with_gc-2026-11-10-033426-696.pprof">
+      <GoProfileMapEntry>
+        <option name="buildAnchorMillis" value="1794274458754" />
+        <option name="file" value="go_build_Transcoder_cmd-heap_with_gc-2026-11-10-033426-696.pprof" />
+        <option name="ours" value="true" />
+        <option name="profileType" value="HEAP_GC" />
+      </GoProfileMapEntry>
+    </profile>
+    <profile entry="$USER_HOME$/GoLandProfiles/go_build_Transcoder_cmd-cpu-2026-11-10-033452-165.pprof">
+      <GoProfileMapEntry>
+        <option name="buildAnchorMillis" value="1794274458754" />
+        <option name="file" value="go_build_Transcoder_cmd-cpu-2026-11-10-033452-165.pprof" />
+        <option name="ours" value="true" />
+        <option name="profileType" value="CPU" />
+      </GoProfileMapEntry>
+    </profile>
+  </component>
+</project>
