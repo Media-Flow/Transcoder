@@ -12,6 +12,10 @@ type StorageService struct {
 	repo *StorageRepository
 }
 
+func NewStorageService(repo *StorageRepository) *StorageService {
+	return &StorageService{repo: repo}
+}
+
 func (s *StorageService) UploadMultipleFiles(ctx context.Context, mediaId string, rootDir string) error {
 	if s == nil || s.repo == nil {
 		return fmt.Errorf("storage repository is not initialized")

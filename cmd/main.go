@@ -1,6 +1,11 @@
 package main
 
 import (
+	"Transcoder/internal/database"
+	"Transcoder/internal/ffmpeg"
+	"Transcoder/internal/media"
+	"Transcoder/internal/storage"
+	"Transcoder/internal/transcoder"
 	"context"
 	"errors"
 	"os"
@@ -36,8 +41,28 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	log.Infof("starting transcoder")
-	dispatcher, err := consumer.NewDispatcher()
+	db, err := database.NewDatabase(ctx, *cfg)
+	if err != nil {
+		log.Errorf("connect database: %v", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	mediaRepo := media.NewRepository(db)
+	mediaService := media.NewService(mediaRepo, media.DefaultTranscodeLease)
+
+	storageRepo := storage.NewStorageRepository(cfg, cfg.Storage.Region)
+	storageService := storage.NewStorageService(storageRepo)
+
+	executor := ffmpeg.NewExecutor()
+
+	transcoderService := transcoder.NewTranscoder(
+		executor,
+		mediaService,
+		storageService,
+	)
+
+	dispatcher, err := consumer.NewDispatcher(transcoderService, mediaService)
 	if err != nil {
 		log.Errorf("create dispatcher: %v", err)
 		os.Exit(1)

@@ -1,13 +1,16 @@
 package consumer
 
 import (
+	"Transcoder/internal/media"
+	"Transcoder/internal/transcoder"
+	"Transcoder/pkg/logger"
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
-	"Transcoder/pkg/logger"
-
+	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -19,19 +22,23 @@ var (
 )
 
 type Dispatcher struct {
-	client *Client
-	log    *logger.Logger
+	client       *Client
+	transcoder   *transcoder.Transcoder
+	mediaService *media.Service
+	log          *logger.Logger
 }
 
-func NewDispatcher() (*Dispatcher, error) {
+func NewDispatcher(transcoderService *transcoder.Transcoder, mediaService *media.Service) (*Dispatcher, error) {
 	client, err := NewClient()
 	if err != nil {
 		return nil, fmt.Errorf("create RabbitMQ consumer: %w", err)
 	}
 
 	return &Dispatcher{
-		client: client,
-		log:    logger.NewLogger("Dispatcher"),
+		client:       client,
+		transcoder:   transcoderService,
+		mediaService: mediaService,
+		log:          logger.NewLogger("Dispatcher"),
 	}, nil
 }
 
@@ -84,20 +91,86 @@ func (d *Dispatcher) handle(delivery amqp.Delivery, wg *sync.WaitGroup) {
 
 	d.log.Infof("processing delivery tag=%d", delivery.DeliveryTag)
 	//TODO: Simulation  to be remove later
-	time.Sleep(5 * time.Second)
+	ctx, closer := context.WithCancel(context.Background())
+	defer closer()
+
 	d.log.Infof("processed delivery tag=%d body=%q", delivery.DeliveryTag, string(delivery.Body))
 
-	if err := delivery.Ack(false); err != nil {
-		if d.client.isClosing() {
-			d.log.Warnf("could not acknowledge delivery tag=%d during shutdown; RabbitMQ will requeue it: %v", delivery.DeliveryTag, err)
-			return
-		}
-
-		d.log.Errorf("acknowledge delivery tag=%d: %v", delivery.DeliveryTag, err)
+	var msg EventMessage
+	if err := json.Unmarshal(delivery.Body, &msg); err != nil {
+		d.log.Errorf("unmarshal delivery tag=%d: %v", delivery.DeliveryTag, err)
+		_ = delivery.Nack(false, false)
 		return
 	}
 
-	d.log.Infof("acknowledged delivery tag=%d", delivery.DeliveryTag)
+	if msg.EventId == uuid.Nil || msg.MediaID == uuid.Nil || msg.Payload.SourceKey == "" {
+		d.log.Errorf("invalid delivery tag=%d: missing IDs or source key", delivery.DeliveryTag)
+		_ = delivery.Nack(false, false)
+		return
+	}
+
+	variants := []media.TranscodeVariant{
+		{VariantKey: media.VariantKey1080p},
+		{VariantKey: media.VariantKey720p},
+	}
+	result, err := d.mediaService.HandleTranscodeEvent(ctx, msg.EventId, msg.MediaID, variants)
+	if err != nil {
+		d.log.Errorf("failed to process delivery tag=%d: %v", delivery.DeliveryTag, err)
+		_ = delivery.Nack(false, true)
+		return
+	}
+
+	switch result.Outcome {
+	case media.TranscodeOutcomeProcess:
+		// continue to transcode below
+
+	case media.TranscodeOutcomeDeadLetter:
+		// TODO: push into DLQ before ack
+		d.ack(delivery)
+		return
+
+	case media.TranscodeOutcomeIgnored:
+		d.ack(delivery)
+		return
+
+	default:
+		d.log.Errorf("unknown outcome tag=%d: %v", delivery.DeliveryTag, result.Outcome)
+		_ = delivery.Nack(false, false)
+		return
+	}
+
+	if result.Event == nil {
+		d.log.Errorf("nil event tag=%d", delivery.DeliveryTag)
+		_ = delivery.Nack(false, false)
+		return
+	}
+
+	// start processing and check for failure
+	if err = d.transcoder.Transcode(
+		ctx,
+		result.Event,
+		msg.Payload.SourceKey,
+	); err != nil {
+		d.log.Errorf("transcode tag=%d: %v", delivery.DeliveryTag, err)
+		_ = delivery.Nack(false, true)
+		return
+	}
+
+	d.ack(delivery)
+}
+
+func (d *Dispatcher) ack(delivery amqp.Delivery) {
+	if err := delivery.Ack(false); err != nil {
+		if d.client.isClosing() {
+			d.log.Warnf("could not acknowledge tag=%d during shutdown: %v", delivery.DeliveryTag, err)
+			return
+		}
+
+		d.log.Errorf("acknowledge tag=%d: %v", delivery.DeliveryTag, err)
+		return
+	}
+
+	d.log.Infof("acknowledged tag=%d", delivery.DeliveryTag)
 }
 
 func (d *Dispatcher) Stop() error {
