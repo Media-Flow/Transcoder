@@ -31,6 +31,8 @@ type TranscodeEventRepository interface {
 	FindTranscodeEvent(ctx context.Context, eventID uuid.UUID, mediaID uuid.UUID) (*TranscodeEvent, error)
 	CreateEvent(ctx context.Context, event *TranscodeEvent) error
 	ClaimForProcessing(ctx context.Context, id uuid.UUID, lease time.Duration) (*TranscodeEvent, error)
+	CompleteEvent(ctx context.Context, id uuid.UUID, variants []TranscodeVariant) error
+	FailEvent(ctx context.Context, id uuid.UUID, lastError string) error
 }
 
 type Service struct {
@@ -166,4 +168,28 @@ func claimFailureResult(event *TranscodeEvent, err error) (HandleResult, error) 
 	default:
 		return HandleResult{}, fmt.Errorf("claim transcode event: %w", err)
 	}
+}
+
+func (s *Service) CompleteEvent(
+	ctx context.Context,
+	id uuid.UUID,
+	variants []TranscodeVariant,
+) error {
+	if s == nil || s.repo == nil {
+		return ErrTranscodeServiceNotInitialized
+	}
+
+	return s.repo.CompleteEvent(ctx, id, variants)
+}
+
+func (s *Service) FailEvent(
+	ctx context.Context,
+	id uuid.UUID,
+	lastError string,
+) error {
+	if s == nil || s.repo == nil {
+		return ErrTranscodeServiceNotInitialized
+	}
+
+	return s.repo.FailEvent(ctx, id, lastError)
 }
