@@ -1,13 +1,12 @@
 package storage
 
 import (
+	"Transcoder/pkg/config"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"log"
-
-	"Transcoder/pkg/config"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	AWSConfig "github.com/aws/aws-sdk-go-v2/config"
@@ -52,17 +51,17 @@ func NewStorageRepository(cfg *config.Config, region string) *StorageRepository 
 	}
 }
 
-func (r *StorageRepository) Upload(ctx context.Context, fileName string, fileBytes io.Reader) error {
+func (r *StorageRepository) Upload(ctx context.Context, key string, fileBytes io.Reader) error {
 	if r.client == nil {
 		return errors.New("s3 client not initialized")
 	}
 	_, err := r.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(r.bucket),
-		Key:    aws.String(fileName),
+		Key:    aws.String(key),
 		Body:   fileBytes,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to upload file %s: %w", fileName, err)
+		return fmt.Errorf("failed to upload file %s: %w", key, err)
 	}
 	return nil
 }

@@ -295,6 +295,7 @@ func TestStorageServiceUploadMultipleFilesPreservesHierarchy(t *testing.T) {
 	repo, service := newTestStorage(t)
 	ctx := context.Background()
 
+	mediaId := "Video-1"
 	rootDir := filepath.Join(t.TempDir(), "app")
 	files := map[string]string{
 		"file1.txt":       "file one content\n",
@@ -306,14 +307,14 @@ func TestStorageServiceUploadMultipleFilesPreservesHierarchy(t *testing.T) {
 		writeTestFile(t, filepath.Join(rootDir, filepath.FromSlash(relPath)), content)
 	}
 
-	if err := service.UploadMultipleFiles(ctx, rootDir); err != nil {
+	if err := service.UploadMultipleFiles(ctx, mediaId, rootDir); err != nil {
 		t.Fatalf("upload multiple files: %v", err)
 	}
 
 	wantKeys := []string{
-		"dir-1/file2.txt",
-		"dir-1/file3.txt",
-		"file1.txt",
+		"Video-1/hls/dir-1/file2.txt",
+		"Video-1/hls/dir-1/file3.txt",
+		"Video-1/hls/file1.txt",
 	}
 	gotKeys := listObjectKeys(t, ctx, repo, repo.bucket)
 	if !slices.Equal(gotKeys, wantKeys) {
@@ -321,8 +322,9 @@ func TestStorageServiceUploadMultipleFilesPreservesHierarchy(t *testing.T) {
 	}
 
 	for relPath, content := range files {
-		if got := presignedContent(t, ctx, repo, relPath); got != content {
-			t.Fatalf("content for %q = %q, want %q", relPath, got, content)
+		key := HLSKey(mediaId, relPath)
+		if got := presignedContent(t, ctx, repo, key); got != content {
+			t.Fatalf("content for %q = %q, want %q", key, got, content)
 		}
 	}
 }

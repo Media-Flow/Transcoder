@@ -12,7 +12,7 @@ type StorageService struct {
 	repo *StorageRepository
 }
 
-func (s *StorageService) UploadMultipleFiles(ctx context.Context, rootDir string) error {
+func (s *StorageService) UploadMultipleFiles(ctx context.Context, mediaId string, rootDir string) error {
 	if s == nil || s.repo == nil {
 		return fmt.Errorf("storage repository is not initialized")
 	}
@@ -34,7 +34,8 @@ func (s *StorageService) UploadMultipleFiles(ctx context.Context, rootDir string
 			return fmt.Errorf("failed to open file %q: %w", localPath, err)
 		}
 
-		uploadErr := s.repo.Upload(ctx, relPath, file)
+		key := HLSKey(mediaId, relPath)
+		uploadErr := s.repo.Upload(ctx, key, file)
 
 		closeErr := file.Close()
 
@@ -71,4 +72,12 @@ func listFiles(rootDir string) ([]string, error) {
 	})
 
 	return files, err
+}
+
+func (s *StorageService) GetPresignedUrl(ctx context.Context, mediaKey string) (string, error) {
+	if s == nil || s.repo == nil {
+		return "", fmt.Errorf("storage repository is not initialized")
+	}
+
+	return s.repo.GetPresignedUrl(ctx, mediaKey)
 }
