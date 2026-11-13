@@ -90,7 +90,6 @@ func (d *Dispatcher) handle(delivery amqp.Delivery, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	d.log.Infof("processing delivery tag=%d", delivery.DeliveryTag)
-	//TODO: Simulation  to be remove later
 	ctx, closer := context.WithCancel(context.Background())
 	defer closer()
 
@@ -103,7 +102,7 @@ func (d *Dispatcher) handle(delivery amqp.Delivery, wg *sync.WaitGroup) {
 		return
 	}
 
-	if msg.EventId == uuid.Nil || msg.MediaID == uuid.Nil || msg.Payload.SourceKey == "" {
+	if msg.EventId == uuid.Nil || msg.MediaID == uuid.Nil || msg.SourceKey == "" {
 		d.log.Errorf("invalid delivery tag=%d: missing IDs or source key", delivery.DeliveryTag)
 		_ = delivery.Nack(false, false)
 		return
@@ -149,7 +148,7 @@ func (d *Dispatcher) handle(delivery amqp.Delivery, wg *sync.WaitGroup) {
 	if err = d.transcoder.Transcode(
 		ctx,
 		result.Event,
-		msg.Payload.SourceKey,
+		msg.SourceKey,
 	); err != nil {
 		d.log.Errorf("transcode tag=%d: %v", delivery.DeliveryTag, err)
 		_ = delivery.Nack(false, true)

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	AWSConfig "github.com/aws/aws-sdk-go-v2/config"
@@ -70,6 +71,8 @@ func (r *StorageRepository) GetPresignedUrl(ctx context.Context, fileName string
 	if r.presignClient == nil {
 		return "", errors.New("presign client not initialized")
 	}
+
+	fileName = strings.TrimPrefix(fileName, r.bucket+"/")
 
 	presignedUrl, err := r.presignClient.PresignGetObject(
 		ctx,
